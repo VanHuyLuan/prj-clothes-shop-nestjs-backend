@@ -6,7 +6,6 @@ import { Prisma } from 'generated/prisma';
 import { JwtService } from '@nestjs/jwt';
 import Redis from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
-import { last } from 'rxjs';
 
 @Injectable()
 export class IdentitiesService {
@@ -78,6 +77,7 @@ export class IdentitiesService {
       lastname: user.lastName,
       username: user.username,
       phone: user.phone,
+      role: user.role.name
     };
     const accessToken = await this.jwtService.signAsync(tokenPayload, {
       expiresIn: '1h',

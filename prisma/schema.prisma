@@ -54,6 +54,7 @@ model User {
   role_id String
   address Address[]
   accounts   Account[]
+  avatar String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 

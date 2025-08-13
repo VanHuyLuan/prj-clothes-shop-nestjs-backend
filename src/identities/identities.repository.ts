@@ -42,8 +42,13 @@ export class IdentitiesRepository {
                     select: {
                         password: true
                     }
+                },
+                role: {
+                    select: {
+                        name: true
+                    }
                 }
-            }
+              }
         });
     }
     async findUserByPhone(phone: string): Promise<UserResponse | null> {
@@ -59,6 +64,11 @@ export class IdentitiesRepository {
                 accounts: {
                     select: {
                         password: true
+                    }
+                },
+                role: {
+                    select: {
+                        name: true
                     }
                 }
             }

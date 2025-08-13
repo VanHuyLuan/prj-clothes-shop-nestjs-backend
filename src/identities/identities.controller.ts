@@ -3,7 +3,9 @@ import { CreateUserDto } from './identities.dto';
 import { IdentitiesService } from './identities.service';
 import { LoginDto } from './identities.dto';
 import { AuthGuard } from './auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('identities')
 @Controller('identities')
 export class IdentitiesController {
     constructor(private identitiesService: IdentitiesService) {}
@@ -23,6 +25,7 @@ export class IdentitiesController {
     }
 
     @UseGuards(AuthGuard)
+    @ApiBearerAuth()
     @Get('/profile')
     async getProfile(
         @Request() req
