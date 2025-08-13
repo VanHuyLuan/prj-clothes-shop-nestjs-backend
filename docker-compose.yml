@@ -12,6 +12,23 @@ services:
       - "5455:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  redis:
+    image: docker.io/bitnami/redis:7.2
+    container_name: redis_clothes_shop
+    restart: always
+    environment:
+      - REDIS_PASSWORD= jfjakjjfajHJJj6362jhqdh!
+    networks:
+      - clothes-network
+    ports:
+      - "6459:6379"
+    volumes:
+      - redis_data:/data
 
 volumes:
   postgres_data:
+  redis_data:
+
+networks:
+  clothes-network:
+    driver: bridge
