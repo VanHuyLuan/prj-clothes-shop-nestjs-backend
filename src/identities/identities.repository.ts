@@ -38,6 +38,7 @@ export class IdentitiesRepository {
                 username: true,
                 firstName: true,
                 lastName: true,
+                avatar: true,
                 accounts: {
                     select: {
                         password: true
@@ -61,6 +62,32 @@ export class IdentitiesRepository {
                 username: true,
                 firstName: true,
                 lastName: true,
+                avatar: true,
+                accounts: {
+                    select: {
+                        password: true
+                    }
+                },
+                role: {
+                    select: {
+                        name: true
+                    }
+                }
+            }
+        });
+    }
+
+    async findUserById(id: string): Promise<UserResponse | null> {
+        return this.prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                email: true,
+                phone: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
                 accounts: {
                     select: {
                         password: true
@@ -75,3 +102,4 @@ export class IdentitiesRepository {
         });
     }
 }
+
