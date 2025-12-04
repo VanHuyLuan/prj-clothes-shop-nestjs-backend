@@ -4,7 +4,7 @@ import { IdentitiesService } from './identities.service';
 import { IdentitiesRepository } from './identities.repository';
 import { PrismaService } from 'src/prisma.service';
 import { JwtModule } from '@nestjs/jwt';
-import { RedisModule } from '@nestjs-modules/ioredis';
+import { LoggerModule } from '../../cross_cuttings/logger/logger.module';
 
 @Module({
   imports: [
@@ -13,9 +13,9 @@ import { RedisModule } from '@nestjs-modules/ioredis';
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '60s' },
     }),
-    RedisModule
+    LoggerModule,
   ],
   controllers: [IdentitiesController],
-  providers: [IdentitiesService, IdentitiesRepository, PrismaService]
+  providers: [IdentitiesService, IdentitiesRepository, PrismaService],
 })
 export class IdentitiesModule {}

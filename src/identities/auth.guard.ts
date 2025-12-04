@@ -1,20 +1,21 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-import Redis from 'ioredis';
-import { InjectRedis } from '@nestjs-modules/ioredis';
+import { CachingService } from '../../cross_cuttings/caching';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private jwtService: JwtService,
-    @InjectRedis() private readonly redis: Redis
+    private readonly cachingService: CachingService,
   ) {}
 
-  async canActivate(
-    context: ExecutionContext,
-  ): Promise<boolean>  {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
 
@@ -22,14 +23,13 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    try{
-      const payload = await this.jwtService.verifyAsync(token,
-        {
-          secret: process.env.JWT_SECRET,
-        }
-      );
-      // Check token trong Redis
-      const cachedToken = await this.redis.get(`token:${payload.id}`);
+    try {
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_SECRET,
+      });
+      // Check token trong cache
+      const cacheKey = this.cachingService.getCacheKey('token', payload.id);
+      const cachedToken = await this.cachingService.getCache<string>(cacheKey);
       if (cachedToken !== token) {
         throw new UnauthorizedException('Token expired or invalid');
       }
@@ -37,7 +37,7 @@ export class AuthGuard implements CanActivate {
       request['user'] = payload;
     } catch {
       throw new UnauthorizedException();
-    } 
+    }
     return true;
   }
 

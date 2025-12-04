@@ -15,6 +15,7 @@
 ---
 
 ## 🚀 Công nghệ sử dụng
+
 - **[NestJS](https://nestjs.com/)** - Framework Node.js cho backend
 - **[TypeScript](https://www.typescriptlang.org/)** - Ngôn ngữ lập trình
 - **[Prisma ORM](https://www.prisma.io/)** - Quản lý cơ sở dữ liệu

@@ -1,6 +1,6 @@
-// redis.module.ts
-import { Module, Global } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { RedisModule as NestRedisModule } from '@nestjs-modules/ioredis';
+import { CachingService } from './caching.service';
 
 @Global()
 @Module({
@@ -11,10 +11,11 @@ import { RedisModule as NestRedisModule } from '@nestjs-modules/ioredis';
         host: process.env.REDIS_HOST,
         port: Number(process.env.REDIS_PORT),
         password: process.env.REDIS_PASSWORD,
-        retryStrategy: times => Math.min(times * 200, 2000),
+        retryStrategy: (times) => Math.min(times * 200, 2000),
       },
     }),
   ],
-  exports: [NestRedisModule],
+  providers: [CachingService],
+  exports: [CachingService, NestRedisModule],
 })
-export class RedisModule {}
+export class CachingModule {}
