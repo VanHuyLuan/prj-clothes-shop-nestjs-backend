@@ -12,7 +12,7 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
-import { UploadResponse } from './upload.dto';
+import { UploadResponse } from './dto/upload.dto';
 
 @ApiTags('Upload')
 @Controller('upload')

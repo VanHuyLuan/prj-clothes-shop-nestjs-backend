@@ -1,14 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { IdentitiesRepository } from './identities.repository';
+import { PrismaService } from '../prisma.service';
 import {
   CreateUserDto,
   CreateUserResponse,
   LoginDto,
   ResetPasswordDto,
   UserInfo,
-} from './identities.dto';
-import { Prisma } from 'generated/prisma';
+  UserResponse,
+} from './dto/identities.dto';
+import { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { CachingService } from '../../cross_cuttings/caching';
 import { LoggerService } from '../../cross_cuttings/logger';
@@ -16,7 +17,7 @@ import { LoggerService } from '../../cross_cuttings/logger';
 @Injectable()
 export class IdentitiesService {
   constructor(
-    private identitiesRepository: IdentitiesRepository,
+    private readonly prisma: PrismaService,
     private jwtService: JwtService,
     private readonly cachingService: CachingService,
     private readonly logger: LoggerService,
@@ -25,16 +26,10 @@ export class IdentitiesService {
   async createUser(input: CreateUserDto): Promise<CreateUserResponse> {
     // Check phone and email exists
     const existUser =
-      (await this.identitiesRepository.findUserByEmail(input.email)) ||
-      (await this.identitiesRepository.findUserByPhone(input.phone));
+      (await this.findUserByEmail(input.email)) ||
+      (await this.findUserByPhone(input.phone));
     if (existUser) {
-      throw (
-        new BadRequestException('Email or phone already exists'),
-        {
-          cause: new Error('Email or phone already exists'),
-          description: 'User already exists',
-        }
-      );
+      throw new BadRequestException('Email or phone already exists');
     }
 
     // 1. Hash password
@@ -52,17 +47,34 @@ export class IdentitiesService {
       },
     };
 
-    // 3. Gọi repository để tạo user + account
-    return this.identitiesRepository.createUser(userData, hashedPassword);
+    // 3. Tạo user + account
+    const user = await this.prisma.user.create({
+      data: {
+        ...userData,
+        accounts: {
+          create: {
+            provider: 'local',
+            providerAccountId: userData.email ?? '',
+            password: hashedPassword,
+          } as Prisma.AccountCreateWithoutUserInput,
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        username: true,
+      },
+    });
+    
+    return user;
   }
 
   async login(
     loginDTO: LoginDto,
   ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
     // 1. Tìm user
-    const user = await this.identitiesRepository.findUserByEmail(
-      loginDTO.email,
-    );
+    const user = await this.findUserByEmail(loginDTO.email);
     if (!user) throw new BadRequestException('Email not found');
 
     // 2. Check password
@@ -145,7 +157,7 @@ export class IdentitiesService {
       }
 
       // 3. Tìm user
-      const user = await this.identitiesRepository.findUserById(payload.id);
+      const user = await this.findUserById(payload.id);
       if (!user) throw new BadRequestException('User not found');
 
       // 4. Sinh access token mới
@@ -188,7 +200,23 @@ export class IdentitiesService {
 
   async listUsers(): Promise<UserInfo[]> {
     this.logger.log('Listing all users');
-    return this.identitiesRepository.listUsers();
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        status: true,
+        role: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
   }
 
   async resetPassword(
@@ -204,7 +232,91 @@ export class IdentitiesService {
       `New hashed password for user ${userId}: ${newHashedPassword}`,
     );
     // 2. Cập nhật mật khẩu trong database
-    await this.identitiesRepository.resetPassword(userId, newHashedPassword);
+    await this.prisma.account.updateMany({
+      where: {
+        user_id: userId,
+        provider: 'local',
+      },
+      data: {
+        password: newHashedPassword,
+      },
+    });
+  }
+
+  // Private helper methods
+  private async findUserByEmail(email: string): Promise<UserResponse | null> {
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        accounts: {
+          select: {
+            password: true,
+          },
+        },
+        role: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  private async findUserByPhone(phone: string): Promise<UserResponse | null> {
+    return this.prisma.user.findUnique({
+      where: { phone },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        accounts: {
+          select: {
+            password: true,
+          },
+        },
+        role: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  private async findUserById(id: string): Promise<UserResponse | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        accounts: {
+          select: {
+            password: true,
+          },
+        },
+        role: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
   }
 
   private async encryptPassword(plainText: string, saltRounds: number) {

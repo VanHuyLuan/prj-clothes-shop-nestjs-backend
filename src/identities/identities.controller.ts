@@ -6,12 +6,12 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { CreateUserDto, LoginDto, ResetPasswordDto } from './identities.dto';
+import { CreateUserDto, LoginDto, ResetPasswordDto } from './dto/identities.dto';
 import { IdentitiesService } from './identities.service';
-import { AuthGuard } from './auth.guard';
+import { AuthGuard } from '../auth/auth.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { RolesGuard } from './roles.guard';
-import { Roles } from './roles.decorator';
+import { RolesGuard } from './roles/roles.guard';
+import { Roles } from './roles/roles.decorator';
 
 @ApiTags('identities')
 @Controller('identities')

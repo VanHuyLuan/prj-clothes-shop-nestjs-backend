@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { UploadResponse } from './upload.dto';
+import { UploadResponse } from './dto/upload.dto';
 import { FileValidationHelper } from './file-validation.helper';
 
 @Injectable()
