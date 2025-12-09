@@ -4,6 +4,7 @@ import { IdentitiesService } from './identities.service';
 import { PrismaService } from 'src/prisma.service';
 import { JwtModule } from '@nestjs/jwt';
 import { LoggerModule } from '../../cross_cuttings/logger/logger.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { LoggerModule } from '../../cross_cuttings/logger/logger.module';
       signOptions: { expiresIn: '60s' },
     }),
     LoggerModule,
+    MailModule,
   ],
   controllers: [IdentitiesController],
   providers: [IdentitiesService, PrismaService],
