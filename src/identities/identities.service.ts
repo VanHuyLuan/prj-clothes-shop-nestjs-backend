@@ -78,16 +78,16 @@ export class IdentitiesService {
     return user;
   }
 
-  async updateUser(input: UpdateUserDto): Promise<UpdateUserResponse> {
+  async updateUser(userId: string, input: UpdateUserDto): Promise<UpdateUserResponse> {
     // Check user exists
-    const existUser = await this.findUserById(input.id);
+    const existUser = await this.findUserById(userId);
     if (!existUser) {
       throw new BadRequestException('User not found');
     }
 
     // Update user
     const updatedUser = await this.prisma.user.update({
-      where: { id: input.id },
+      where: { id: userId },
       data: {
         email: input.email,
         phone: input.phone,
@@ -107,38 +107,6 @@ export class IdentitiesService {
     });
 
     return updatedUser;
-  }
-
-  // Add address for user
-  async AddUserAddress(userId: string, input: UpdateAddressDto): Promise<UpdateAddressResponse> {
-    // Check user exists
-    const existUser = await this.findUserById(userId);
-    if (!existUser) {
-      throw new BadRequestException('User not found');
-    }
-    
-    // Add address
-    const address = await this.prisma.address.create({
-      data: {
-        user: {
-          connect: { id: userId },
-        },
-        street: input.street,
-        city: input.city,
-        state: input.state,
-        zip: input.zip,
-        country: input.country,
-      },
-    });
-
-    return address;
-  }
-
-  // Delete address for user
-  async DeleteUserAddress(addressId: string): Promise<void> {
-    await this.prisma.address.delete({
-      where: { id: addressId },
-    });
   }
 
   async createUserbyAdmin(input: CreateUserByAdminDto): Promise<CreateUserByAdminResponse> {
@@ -211,6 +179,19 @@ export class IdentitiesService {
     }
     
     return user;
+  }
+
+  async deleteUserByAdmin(userId: string): Promise<void> {
+    // Check user exists
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    
+    // Delete user
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });
   }
 
   async resetPasswordByAdmin(userId: string): Promise<void> {

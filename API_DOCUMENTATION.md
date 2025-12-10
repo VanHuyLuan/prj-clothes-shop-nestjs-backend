@@ -70,7 +70,7 @@ POST /identities/login
 }
 ```
 
-### 3. Lấy thông tin profile
+### 3. Lấy thông tin profile đầy đủ
 ```http
 GET /identities/profile
 Authorization: Bearer {access_token}
@@ -85,14 +85,104 @@ Authorization: Bearer {access_token}
   "phone": "+84901234567",
   "firstName": "John",
   "lastName": "Doe",
-  "avatar": "https://...",
-  "role": "user"
+  "avatar": "https://cloudinary.com/...",
+  "status": true,
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-02T00:00:00Z",
+  "role": {
+    "id": "uuid",
+    "name": "user",
+    "description": "Regular user role"
+  },
+  "address": [
+    {
+      "id": "uuid",
+      "street": "123 Nguyễn Huệ",
+      "city": "Hồ Chí Minh",
+      "state": "Quận 1",
+      "zip": "700000",
+      "country": "Vietnam"
+    }
+  ]
 }
 ```
 
-### 4. Đổi mật khẩu
+**Lưu ý:** 
+- API này trả về đầy đủ thông tin user từ database (không chỉ từ JWT token)
+- Bao gồm cả danh sách địa chỉ và thông tin role chi tiết
+
+### 4. Cập nhật thông tin profile (Client)
 ```http
-POST /identities/reset-password
+POST /identities/update-user
+Authorization: Bearer {access_token}
+```
+
+**Body:**
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "phone": "+84901234567",
+  "avatar": "https://cloudinary.com/..."
+}
+```
+
+**Response:**
+```json
+{
+  "message": "User updated successfully",
+  "user": {
+    "id": "uuid",
+    "username": "johndoe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+84901234567",
+    "avatar": "https://..."
+  }
+}
+```
+
+**Lưu ý:**
+- User chỉ có thể cập nhật thông tin của chính mình
+- Không thể thay đổi: username, email, role
+- Tất cả fields đều optional
+
+### 5. Thêm/Cập nhật địa chỉ (Client)
+```http
+POST /identities/update-address
+Authorization: Bearer {access_token}
+```
+
+**Body:**
+```json
+{
+  "street": "123 Nguyễn Huệ",
+  "city": "Hồ Chí Minh",
+  "state": "Quận 1",
+  "zip": "700000",
+  "country": "Vietnam"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Address added successfully",
+  "address": {
+    "id": "uuid",
+    "user_id": "uuid",
+    "street": "123 Nguyễn Huệ",
+    "city": "Hồ Chí Minh",
+    "state": "Quận 1",
+    "zip": "700000",
+    "country": "Vietnam"
+  }
+}
+```
+
+### 6. Đổi mật khẩu
+```http
+POST /identities/change-password
 Authorization: Bearer {access_token}
 ```
 
@@ -104,7 +194,14 @@ Authorization: Bearer {access_token}
 }
 ```
 
-### 5. Tạo user bởi Admin (Admin only) 📧
+**Response:**
+```json
+{
+  "message": "Password changed successfully"
+}
+```
+
+### 7. Tạo user bởi Admin (Admin only) 📧
 ```http
 POST /identities/createuserbyAdmin
 Authorization: Bearer {access_token}
@@ -143,15 +240,140 @@ Authorization: Bearer {access_token}
   - Mật khẩu mặc định: `Clothesshop123@`
 - User được khuyến nghị đổi mật khẩu ngay sau lần đăng nhập đầu tiên
 
-### 6. Danh sách người dùng (Admin only)
+### 8. Danh sách người dùng (Admin only)
 ```http
-GET /identities/list-users?page=1&limit=10
+GET /identities/list-users?page=1&limit=10&role_id=uuid&sortBy=created_at&sortOrder=desc
 Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
 - `page` (optional): Số trang, mặc định 1
 - `limit` (optional): Số lượng items/trang, mặc định 10
+- `role_id` (optional): Lọc theo role ID
+- `sortBy` (optional): Sắp xếp theo field, mặc định 'created_at'
+- `sortOrder` (optional): Thứ tự sắp xếp 'asc' hoặc 'desc', mặc định 'desc'
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "phone": "+84901234567",
+      "firstName": "John",
+      "lastName": "Doe",
+      "avatar": "https://...",
+      "status": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-02T00:00:00Z",
+      "role": {
+        "id": "uuid",
+        "name": "user",
+        "description": "Regular user"
+      }
+    }
+  ],
+  "pagination": {
+    "total": 100,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 10
+  }
+}
+```
+
+### 9. Cập nhật thông tin user (Admin only)
+```http
+POST /identities/update-user-by-admin?userId=uuid
+Authorization: Bearer {access_token}
+```
+
+**Query Parameters:**
+- `userId` (required): ID của user cần cập nhật
+
+**Body:**
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "phone": "+84901234567",
+  "avatar": "https://cloudinary.com/...",
+  "role": "user"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "User updated successfully",
+  "user": {
+    "id": "uuid",
+    "username": "johndoe",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+84901234567",
+    "avatar": "https://...",
+    "role": {
+      "name": "user"
+    }
+  }
+}
+```
+
+**Lưu ý:**
+- Admin có thể cập nhật tất cả thông tin user kể cả role
+- Tất cả fields đều optional
+- Không thể thay đổi: username, email
+
+### 10. Đặt trạng thái user (Admin only)
+```http
+POST /identities/set-user-status?userId=uuid&status=true
+Authorization: Bearer {access_token}
+```
+
+**Query Parameters:**
+- `userId` (required): ID của user cần thay đổi trạng thái
+- `status` (required): Trạng thái mới - `true` (active) hoặc `false` (inactive)
+
+**Ví dụ:**
+```http
+POST /identities/set-user-status?userId=abc-123&status=false
+```
+
+**Response:**
+```json
+{
+  "message": "User status updated successfully"
+}
+```
+
+**Chức năng:**
+- Kích hoạt (`status=true`) hoặc vô hiệu hóa (`status=false`) tài khoản user
+- Khi `status=false`, user không thể đăng nhập vào hệ thống
+- Chỉ admin mới có quyền thực hiện
+
+### 11. Xóa user (Admin only)
+```http
+POST /identities/delete-user?userId=uuid
+Authorization: Bearer {access_token}
+```
+
+**Query Parameters:**
+- `userId` (required): ID của user cần xóa
+
+**Response:**
+```json
+{
+  "message": "User deleted successfully"
+}
+```
+
+**Cảnh báo:**
+- Thao tác này sẽ xóa vĩnh viễn user và tất cả dữ liệu liên quan
+- Nên sử dụng API "Đặt trạng thái user" để vô hiệu hóa thay vì xóa
+- Chỉ admin mới có quyền thực hiện
 
 ---
 
@@ -672,6 +894,17 @@ Authorization: Bearer {access_token}
 DELETE /address/{id}
 Authorization: Bearer {access_token}
 ```
+
+**Response:**
+```json
+{
+  "message": "Address deleted successfully"
+}
+```
+
+**Lưu ý:**
+- User chỉ có thể xóa địa chỉ của chính mình
+- Admin có thể xóa địa chỉ của bất kỳ user nào
 
 ### 6. Lấy tất cả địa chỉ (Admin only)
 ```http

@@ -37,6 +37,19 @@ export class IdentitiesController {
     return await this.identitiesService.login(loginDto);
   }
 
+  @Post('/refresh-token')
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
+    return await this.identitiesService.refreshToken(refreshToken);
+  }
+
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @Post('/logout')
+  async logout(@Request() req) {
+    const userId = req.user.id;
+    return await this.identitiesService.logout(userId);
+  }
+
   @UseGuards(AuthGuard)
   @ApiBearerAuth()
   @Get('/profile')
@@ -78,14 +91,22 @@ export class IdentitiesController {
   @Post('/update-user')
   async updateUser(@Request() req, @Body() updateUserDto: any) {
     const userId = req.user.id;
-    return this.identitiesService.updateUser( updateUserDto);
+    return this.identitiesService.updateUser(userId, updateUserDto);
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
   @ApiBearerAuth()
-  @Post('/update-address')
-  async updateAddress(@Request() req, @Body() updateAddressDto: any) {
-    const userId = req.user.id;
-    return this.identitiesService.AddUserAddress(userId, updateAddressDto);
+  @Post('/delete-user')
+  @Roles('admin')
+  async deleteUser(@Query('userId') userId: string) {
+    return this.identitiesService.deleteUserByAdmin(userId);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Post('/reset-password-by-admin')
+  @Roles('admin')
+  async resetPasswordByAdmin(@Query('userId') userId: string) {
+    return this.identitiesService.resetPasswordByAdmin(userId);
   }
 }
