@@ -52,7 +52,7 @@ POST /identities/login
 **Body:**
 ```json
 {
-  "username": "johndoe",
+  "email": "john@example.com",
   "password": "Password123!"
 }
 ```
@@ -60,17 +60,67 @@ POST /identities/login
 **Response:**
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": "uuid",
-    "username": "johndoe",
-    "email": "john@example.com",
-    "role": "user"
-  }
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresIn": 3600
 }
 ```
 
-### 3. Lấy thông tin profile đầy đủ
+**Lưu ý:**
+- `accessToken`: Token để truy cập API, hết hạn sau 1 giờ (3600 giây)
+- `refreshToken`: Token để làm mới accessToken, hết hạn sau 7 ngày
+- `expiresIn`: Thời gian sống của accessToken (giây)
+- Lưu cả 2 tokens vào localStorage/sessionStorage
+
+### 3. Làm mới Access Token (Refresh Token)
+```http
+POST /identities/refresh-token
+```
+
+**Body:**
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response:**
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresIn": 3600
+}
+```
+
+**Khi nào sử dụng:**
+- Khi accessToken hết hạn (API trả về 401)
+- Sử dụng refreshToken để lấy accessToken mới mà không cần đăng nhập lại
+- Frontend nên tự động refresh token khi nhận 401 error
+
+**Lưu ý:**
+- Không cần Authorization header (vì accessToken đã hết hạn)
+- RefreshToken chỉ dùng được 1 lần, sau đó cần dùng token mới
+- Nếu refreshToken hết hạn/không hợp lệ → redirect về trang login
+
+### 4. Đăng xuất
+```http
+POST /identities/logout
+Authorization: Bearer {access_token}
+```
+
+**Response:**
+```json
+{
+  "message": "Logged out successfully"
+}
+```
+
+**Chức năng:**
+- Xóa accessToken và refreshToken khỏi server cache
+- Token sẽ không còn hợp lệ ngay lập tức
+- Frontend cần xóa tokens khỏi localStorage sau khi logout thành công
+
+### 5. Lấy thông tin profile đầy đủ
 ```http
 GET /identities/profile
 Authorization: Bearer {access_token}
@@ -111,7 +161,7 @@ Authorization: Bearer {access_token}
 - API này trả về đầy đủ thông tin user từ database (không chỉ từ JWT token)
 - Bao gồm cả danh sách địa chỉ và thông tin role chi tiết
 
-### 4. Cập nhật thông tin profile (Client)
+### 6. Cập nhật thông tin profile (Client)
 ```http
 POST /identities/update-user
 Authorization: Bearer {access_token}
@@ -147,7 +197,7 @@ Authorization: Bearer {access_token}
 - Không thể thay đổi: username, email, role
 - Tất cả fields đều optional
 
-### 5. Thêm/Cập nhật địa chỉ (Client)
+### 7. Thêm/Cập nhật địa chỉ (Client)
 ```http
 POST /identities/update-address
 Authorization: Bearer {access_token}
@@ -180,7 +230,7 @@ Authorization: Bearer {access_token}
 }
 ```
 
-### 6. Đổi mật khẩu
+### 8. Đổi mật khẩu
 ```http
 POST /identities/change-password
 Authorization: Bearer {access_token}
@@ -201,9 +251,9 @@ Authorization: Bearer {access_token}
 }
 ```
 
-### 7. Tạo user bởi Admin (Admin only) 📧
+### 9. Tạo user bởi Admin (Admin only) 📧
 ```http
-POST /identities/createuserbyAdmin
+POST /identities/createuser-by-admin
 Authorization: Bearer {access_token}
 ```
 
@@ -240,7 +290,7 @@ Authorization: Bearer {access_token}
   - Mật khẩu mặc định: `Clothesshop123@`
 - User được khuyến nghị đổi mật khẩu ngay sau lần đăng nhập đầu tiên
 
-### 8. Danh sách người dùng (Admin only)
+### 10. Danh sách người dùng (Admin only)
 ```http
 GET /identities/list-users?page=1&limit=10&role_id=uuid&sortBy=created_at&sortOrder=desc
 Authorization: Bearer {access_token}
@@ -284,7 +334,7 @@ Authorization: Bearer {access_token}
 }
 ```
 
-### 9. Cập nhật thông tin user (Admin only)
+### 11. Cập nhật thông tin user (Admin only)
 ```http
 POST /identities/update-user-by-admin?userId=uuid
 Authorization: Bearer {access_token}
@@ -327,7 +377,7 @@ Authorization: Bearer {access_token}
 - Tất cả fields đều optional
 - Không thể thay đổi: username, email
 
-### 10. Đặt trạng thái user (Admin only)
+### 12. Đặt trạng thái user (Admin only)
 ```http
 POST /identities/set-user-status?userId=uuid&status=true
 Authorization: Bearer {access_token}
@@ -354,7 +404,33 @@ POST /identities/set-user-status?userId=abc-123&status=false
 - Khi `status=false`, user không thể đăng nhập vào hệ thống
 - Chỉ admin mới có quyền thực hiện
 
-### 11. Xóa user (Admin only)
+### 13. Reset mật khẩu user (Admin only) 📧
+```http
+POST /identities/reset-password-by-admin?userId=uuid
+Authorization: Bearer {access_token}
+```
+
+**Query Parameters:**
+- `userId` (required): ID của user cần reset mật khẩu
+
+**Response:**
+```json
+{
+  "message": "Password reset successfully"
+}
+```
+
+**📧 Tính năng Email:**
+- Reset mật khẩu về mặc định: `Clothesshop123@`
+- Tự động gửi email thông báo mật khẩu mới cho user
+- User được khuyến nghị đổi mật khẩu ngay sau khi nhận được email
+
+**Chức năng:**
+- Admin reset mật khẩu user khi user quên mật khẩu
+- Mật khẩu sẽ được đặt lại về mặc định
+- Chỉ admin mới có quyền thực hiện
+
+### 14. Xóa user (Admin only)
 ```http
 POST /identities/delete-user?userId=uuid
 Authorization: Bearer {access_token}
@@ -1009,14 +1085,52 @@ DELETE /upload/delete?url=https://res.cloudinary.com/.../abc.jpg
 
 1. **Đăng nhập:**
    - POST `/identities/login`
-   - Lưu `access_token` vào localStorage/sessionStorage
-   - Lưu thông tin user
+   - Lưu `accessToken` và `refreshToken` vào localStorage
+   ```javascript
+   const { accessToken, refreshToken, expiresIn } = await login(email, password);
+   localStorage.setItem('access_token', accessToken);
+   localStorage.setItem('refresh_token', refreshToken);
+   ```
 
 2. **Sử dụng API:**
    - Thêm header: `Authorization: Bearer {access_token}`
 
-3. **Kiểm tra token hết hạn:**
-   - Nếu API trả về 401, redirect về trang login
+3. **Xử lý khi Access Token hết hạn (401):**
+   ```javascript
+   // Interceptor xử lý 401 error
+   api.interceptors.response.use(
+     response => response,
+     async error => {
+       if (error.response?.status === 401) {
+         const refreshToken = localStorage.getItem('refresh_token');
+         
+         try {
+           // Refresh token
+           const { accessToken } = await refreshAccessToken(refreshToken);
+           localStorage.setItem('access_token', accessToken);
+           
+           // Retry request với token mới
+           error.config.headers.Authorization = `Bearer ${accessToken}`;
+           return api.request(error.config);
+         } catch (refreshError) {
+           // Refresh token cũng hết hạn → redirect login
+           localStorage.clear();
+           window.location.href = '/login';
+         }
+       }
+       return Promise.reject(error);
+     }
+   );
+   ```
+
+4. **Đăng xuất:**
+   - POST `/identities/logout`
+   - Xóa tokens khỏi localStorage
+   ```javascript
+   await logout();
+   localStorage.removeItem('access_token');
+   localStorage.removeItem('refresh_token');
+   ```
 
 ### Cho Guest (chưa đăng nhập):
 
@@ -1133,23 +1247,51 @@ const uploadImage = async (file) => {
 
 ```javascript
 // Login
-async function login(username, password) {
+async function login(email, password) {
   const response = await fetch('http://localhost:4000/identities/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email, password })
   });
   
   const data = await response.json();
   
-  if (data.access_token) {
-    localStorage.setItem('access_token', data.access_token);
-    localStorage.setItem('user', JSON.stringify(data.user));
+  if (data.accessToken) {
+    localStorage.setItem('access_token', data.accessToken);
+    localStorage.setItem('refresh_token', data.refreshToken);
   }
   
   return data;
+}
+
+// Refresh Token
+async function refreshAccessToken(refreshToken) {
+  const response = await fetch('http://localhost:4000/identities/refresh-token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ refreshToken })
+  });
+  
+  return await response.json();
+}
+
+// Logout
+async function logout() {
+  const token = localStorage.getItem('access_token');
+  
+  await fetch('http://localhost:4000/identities/logout', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
 }
 
 // Get Products

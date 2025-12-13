@@ -34,7 +34,20 @@ export class ProductsService {
 
       return product;
     } catch (error) {
-      throw new BadRequestException('Failed to create product');
+      console.error('Error creating product:', error);
+      
+      // Trả về lỗi chi tiết để FE biết vấn đề cụ thể
+      if (error.code === 'P2002') {
+        throw new BadRequestException(`Duplicate value: ${error.meta?.target || 'unique constraint violated'}`);
+      }
+      if (error.code === 'P2003') {
+        throw new BadRequestException('Invalid category ID or foreign key constraint failed');
+      }
+      if (error.code === 'P2025') {
+        throw new NotFoundException('Related record not found');
+      }
+      
+      throw new BadRequestException(error.message || 'Failed to create product');
     }
   }
 

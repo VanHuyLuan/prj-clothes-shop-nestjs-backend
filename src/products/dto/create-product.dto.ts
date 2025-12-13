@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsDecimal, IsInt, IsUUID, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsInt, IsUUID, ValidateNested, IsNumber, IsPositive } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -17,13 +17,17 @@ export class CreateProductVariantDto {
   @IsString()
   sku: string;
 
-  @ApiProperty()
-  @IsDecimal()
+  @ApiProperty({ type: Number, example: 250000 })
+  @Type(() => Number)
+  @IsNumber()
+  @IsPositive()
   price: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: Number, example: 200000 })
   @IsOptional()
-  @IsDecimal()
+  @Type(() => Number)
+  @IsNumber()
+  @IsPositive()
   sale_price?: number;
 
   @ApiProperty({ default: 0 })

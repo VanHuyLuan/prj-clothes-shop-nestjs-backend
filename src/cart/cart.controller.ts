@@ -29,10 +29,11 @@ export class CartController {
   constructor(private readonly cartService: CartService) {}
 
   @Get()
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get cart contents' })
   @ApiHeader({ name: 'x-guest-cart-id', required: false, description: 'Guest cart ID for non-authenticated users' })
   @ApiResponse({ status: 200, description: 'Cart retrieved successfully' })
-  @UseGuards(AuthGuard)
   getCart(
     @Request() req: any,
     @Headers('x-guest-cart-id') guestCartId?: string
@@ -51,12 +52,13 @@ export class CartController {
   }
 
   @Post('add')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Add item to cart' })
   @ApiHeader({ name: 'x-guest-cart-id', required: false, description: 'Guest cart ID for non-authenticated users' })
   @ApiResponse({ status: 201, description: 'Item added to cart successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request - Not enough stock' })
   @ApiResponse({ status: 404, description: 'Product variant not found' })
-  @UseGuards(AuthGuard)
   addToCart(
     @Body() addToCartDto: AddToCartDto,
     @Request() req: any,
@@ -80,13 +82,14 @@ export class CartController {
   }
 
   @Patch('items/:itemId')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update cart item quantity' })
   @ApiParam({ name: 'itemId', description: 'Cart item ID' })
   @ApiHeader({ name: 'x-guest-cart-id', required: false, description: 'Guest cart ID for non-authenticated users' })
   @ApiResponse({ status: 200, description: 'Cart item updated successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 404, description: 'Cart item not found' })
-  @UseGuards(AuthGuard)
   updateCartItem(
     @Param('itemId') itemId: string,
     @Body() updateCartItemDto: UpdateCartItemDto,
@@ -113,12 +116,13 @@ export class CartController {
   }
 
   @Delete('items/:itemId')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove item from cart' })
   @ApiParam({ name: 'itemId', description: 'Cart item ID' })
   @ApiHeader({ name: 'x-guest-cart-id', required: false, description: 'Guest cart ID for non-authenticated users' })
   @ApiResponse({ status: 200, description: 'Cart item removed successfully' })
   @ApiResponse({ status: 404, description: 'Cart item not found' })
-  @UseGuards(AuthGuard)
   removeCartItem(
     @Param('itemId') itemId: string,
     @Request() req: any,
@@ -142,10 +146,11 @@ export class CartController {
   }
 
   @Delete('clear')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Clear all items from cart' })
   @ApiHeader({ name: 'x-guest-cart-id', required: false, description: 'Guest cart ID for non-authenticated users' })
   @ApiResponse({ status: 200, description: 'Cart cleared successfully' })
-  @UseGuards(AuthGuard)
   clearCart(
     @Request() req: any,
     @Headers('x-guest-cart-id') guestCartId?: string
