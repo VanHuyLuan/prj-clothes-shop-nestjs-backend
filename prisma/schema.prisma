@@ -51,6 +51,8 @@ model User {
   phone      String?   @unique
   firstName  String?
   lastName   String?
+  gender     String?
+  birthday   DateTime?
   role_id    String
   status     Boolean   @default(true)
   avatar     String?

@@ -106,7 +106,8 @@ export class OrdersService {
   }
 
   async createFromCart(createOrderFromCartDto: CreateOrderFromCartDto, userId?: string) {
-    const { cartId, shippingAddress } = createOrderFromCartDto;
+    const { cartId, shipping_address } = createOrderFromCartDto;
+    const shippingAddress = shipping_address;
 
     // Get cart items
     let cart;

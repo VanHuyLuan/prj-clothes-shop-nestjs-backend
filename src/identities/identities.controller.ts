@@ -109,4 +109,12 @@ export class IdentitiesController {
   async resetPasswordByAdmin(@Query('userId') userId: string) {
     return this.identitiesService.resetPasswordByAdmin(userId);
   }
+
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @Post('/set-avatar')
+  async setAvatar(@Request() req, @Body('avatarUrl') avatarUrl: string) {
+    const userId = req.user.id;
+    return this.identitiesService.updateAvatar(userId, avatarUrl);
+  }
 }

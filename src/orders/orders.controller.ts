@@ -49,7 +49,7 @@ export class OrdersController {
     @Body() createOrderFromCartDto: CreateOrderFromCartDto,
     @Request() req: any
   ) {
-    const userId = req.user.sub;
+    const userId = req.user.id;
     return this.ordersService.createFromCart(createOrderFromCartDto, userId);
   }
 
@@ -70,7 +70,7 @@ export class OrdersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   findAll(@Query() query: OrderQueryDto, @Request() req: any) {
-    return this.ordersService.findAll(query, req.user.role, req.user.sub);
+    return this.ordersService.findAll(query, req.user.role, req.user.id);
   }
 
   @Get('my-orders')
@@ -80,7 +80,7 @@ export class OrdersController {
   @ApiResponse({ status: 200, description: 'User orders retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getUserOrders(@Query() query: OrderQueryDto, @Request() req: any) {
-    const userId = req.user.sub;
+    const userId = req.user.id;
     return this.ordersService.getUserOrders(userId, query);
   }
 
@@ -94,7 +94,7 @@ export class OrdersController {
     @Request() req: any
   ) {
     const userRole = req.user?.role;
-    const currentUserId = req.user?.sub;
+    const currentUserId = req.user?.id;
     return this.ordersService.findByOrderNumber(orderNumber, userRole, currentUserId);
   }
 
@@ -105,7 +105,7 @@ export class OrdersController {
   @ApiResponse({ status: 404, description: 'Order not found' })
   findOne(@Param('id') id: string, @Request() req: any) {
     const userRole = req.user?.role;
-    const currentUserId = req.user?.sub;
+    const currentUserId = req.user?.id;
     return this.ordersService.findOne(id, userRole, currentUserId);
   }
 
@@ -124,7 +124,7 @@ export class OrdersController {
     @Request() req: any
   ) {
     const userRole = req.user.role;
-    const currentUserId = req.user.sub;
+    const currentUserId = req.user.id;
     return this.ordersService.update(id, updateOrderDto, userRole, currentUserId);
   }
 
@@ -144,6 +144,6 @@ export class OrdersController {
     @Body() updateOrderDto: UpdateOrderDto,
     @Request() req: any
   ) {
-    return this.ordersService.update(id, updateOrderDto, 'admin', req.user.sub);
+    return this.ordersService.update(id, updateOrderDto, 'admin', req.user.id);
   }
 }

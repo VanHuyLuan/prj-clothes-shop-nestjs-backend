@@ -38,7 +38,7 @@ export class CartController {
     @Request() req: any,
     @Headers('x-guest-cart-id') guestCartId?: string
   ) {
-    const userId = req.user?.sub;
+    const userId = req.user?.id;
     return this.cartService.getCart(userId, guestCartId);
   }
 
@@ -64,7 +64,10 @@ export class CartController {
     @Request() req: any,
     @Headers('x-guest-cart-id') guestCartId?: string
   ) {
-    const userId = req.user?.sub;
+    const userId = req.user?.id;
+    console.log('🔍 [ADD TO CART] req.user:', req.user);
+    console.log('🔍 [ADD TO CART] userId:', userId);
+    console.log('🔍 [ADD TO CART] guestCartId:', guestCartId);
     return this.cartService.addToCart(addToCartDto, userId, guestCartId);
   }
 
@@ -96,7 +99,7 @@ export class CartController {
     @Request() req: any,
     @Headers('x-guest-cart-id') guestCartId?: string
   ) {
-    const userId = req.user?.sub;
+    const userId = req.user?.id;
     return this.cartService.updateCartItem(itemId, updateCartItemDto, userId, guestCartId);
   }
 
@@ -128,7 +131,7 @@ export class CartController {
     @Request() req: any,
     @Headers('x-guest-cart-id') guestCartId?: string
   ) {
-    const userId = req.user?.sub;
+    const userId = req.user?.id;
     return this.cartService.removeCartItem(itemId, userId, guestCartId);
   }
 
@@ -155,7 +158,7 @@ export class CartController {
     @Request() req: any,
     @Headers('x-guest-cart-id') guestCartId?: string
   ) {
-    const userId = req.user?.sub;
+    const userId = req.user?.id;
     return this.cartService.clearCart(userId, guestCartId);
   }
 
@@ -178,7 +181,7 @@ export class CartController {
     @Param('guestCartId') guestCartId: string,
     @Request() req: any
   ) {
-    const userId = req.user.sub;
+    const userId = req.user.id;
     return this.cartService.mergeGuestCart(guestCartId, userId);
   }
 }

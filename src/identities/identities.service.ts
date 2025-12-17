@@ -94,6 +94,8 @@ export class IdentitiesService {
         firstName: input.firstname,
         lastName: input.lastname,
         avatar: input.avatar, 
+        gender: input.gender,
+        birthday: input.birthday,
       },
       select: {
         id: true,
@@ -103,10 +105,15 @@ export class IdentitiesService {
         firstName: true,
         lastName: true,
         avatar: true,
+        gender: true,
+        birthday: true,
       },
     });
 
-    return updatedUser;
+    return {
+      ...updatedUser,
+      birthday: updatedUser.birthday ? updatedUser.birthday.toISOString() : null,
+    };
   }
 
   async createUserbyAdmin(input: CreateUserByAdminDto): Promise<CreateUserByAdminResponse> {
@@ -179,6 +186,42 @@ export class IdentitiesService {
     }
     
     return user;
+  }
+
+  async updateUserByAdmin(userId: string, input: UpdateUserDto): Promise<UpdateUserResponse> {
+    // Check user exists
+    const existUser = await this.findUserById(userId);
+    if (!existUser) {
+      throw new BadRequestException('User not found');
+    }
+    
+    // Update user
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: input.email,
+        phone: input.phone,
+        firstName: input.firstname,
+        lastName: input.lastname,
+        avatar: input.avatar,
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        gender: true,
+        birthday: true,
+      },
+    });
+
+    return {
+      ...updatedUser,
+      birthday: updatedUser.birthday ? updatedUser.birthday.toISOString() : null,
+    };
   }
 
   async deleteUserByAdmin(userId: string): Promise<void> {
@@ -359,6 +402,19 @@ export class IdentitiesService {
     }
   }
 
+  async updateAvatar(userId: string, avatarUrl: string): Promise<void> {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatar: avatarUrl },
+    });
+  }
+
+
   async logout(userId: string) {
     await this.cachingService.removeCacheWithPrefix('token', userId);
     await this.cachingService.removeCacheWithPrefix('refreshToken', userId);
@@ -475,6 +531,8 @@ export class IdentitiesService {
         lastName: true,
         avatar: true,
         status: true,
+        gender: true,
+        birthday: true,
         created_at: true,
         updated_at: true,
         role: {
@@ -516,6 +574,8 @@ export class IdentitiesService {
         firstName: true,
         lastName: true,
         avatar: true,
+        gender: true,
+        birthday: true,
         accounts: {
           select: {
             password: true,
@@ -542,6 +602,8 @@ export class IdentitiesService {
         firstName: true,
         lastName: true,
         avatar: true,
+        gender: true,
+        birthday: true,
         accounts: {
           select: {
             password: true,
@@ -568,6 +630,8 @@ export class IdentitiesService {
         firstName: true,
         lastName: true,
         avatar: true,
+        gender: true,
+        birthday: true,
         accounts: {
           select: {
             password: true,

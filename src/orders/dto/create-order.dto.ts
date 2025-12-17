@@ -30,10 +30,10 @@ export class CreateOrderFromCartDto {
   @IsUUID()
   cartId?: string; // For guest checkout
 
-  @ApiProperty({ type: ShippingAddressDto })
+  @ApiProperty({ type: ShippingAddressDto, name: 'shipping_address' })
   @ValidateNested()
   @Type(() => ShippingAddressDto)
-  shippingAddress: ShippingAddressDto;
+  shipping_address: ShippingAddressDto;
 }
 
 export class OrderItemDto {

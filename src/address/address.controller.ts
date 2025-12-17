@@ -36,7 +36,7 @@ export class AddressController {
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@Body() createAddressDto: CreateAddressDto, @Request() req: any) {
-    const userId = req.user.sub;
+    const userId = req.user.id;
     return this.addressService.create(userId, createAddressDto);
   }
 
@@ -45,7 +45,7 @@ export class AddressController {
   @ApiResponse({ status: 200, description: 'Addresses retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findUserAddresses(@Request() req: any) {
-    const userId = req.user.sub;
+    const userId = req.user.id;
     return this.addressService.findAllByUser(userId);
   }
 
@@ -78,7 +78,7 @@ export class AddressController {
   @ApiResponse({ status: 404, description: 'Address not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findOne(@Param('id') id: string, @Request() req: any) {
-    const userId = req.user.role === 'admin' ? undefined : req.user.sub;
+    const userId = req.user.role === 'admin' ? undefined : req.user.id;
     return this.addressService.findOne(id, userId);
   }
 
@@ -94,7 +94,7 @@ export class AddressController {
     @Body() updateAddressDto: UpdateAddressDto,
     @Request() req: any
   ) {
-    const userId = req.user.role === 'admin' ? undefined : req.user.sub;
+    const userId = req.user.role === 'admin' ? undefined : req.user.id;
     return this.addressService.update(id, updateAddressDto, userId);
   }
 

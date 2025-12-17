@@ -158,10 +158,6 @@ export interface ListUsersResponse {
 export class UpdateUserDto {
   @ApiProperty()
   @IsNotEmpty()
-  id: string;
-
-  @ApiProperty()
-  @IsNotEmpty()
   @IsString()
   username: string;
 
@@ -188,6 +184,14 @@ export class UpdateUserDto {
   @ApiProperty({ required: false })
   @IsString()
   avatar?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  gender?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  birthday?: string;
 }
 
 export interface UpdateUserResponse {
@@ -198,6 +202,8 @@ export interface UpdateUserResponse {
   firstName: string | null;
   lastName: string | null;
   avatar: string | null;
+  gender: string | null;
+  birthday: string | null;
 }
 
 export class UpdateAddressDto {
