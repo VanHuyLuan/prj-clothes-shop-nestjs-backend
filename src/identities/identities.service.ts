@@ -95,7 +95,7 @@ export class IdentitiesService {
         lastName: input.lastname,
         avatar: input.avatar, 
         gender: input.gender,
-        birthday: input.birthday,
+        birthday: input.birthday ? new Date(input.birthday) : null,
       },
       select: {
         id: true,
@@ -204,6 +204,8 @@ export class IdentitiesService {
         firstName: input.firstname,
         lastName: input.lastname,
         avatar: input.avatar,
+        gender: input.gender,
+        birthday: input.birthday ? new Date(input.birthday) : null,
       },
       select: {
         id: true,
