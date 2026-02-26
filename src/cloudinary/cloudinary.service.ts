@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
+import * as fs from 'fs';
 
 @Injectable()
 export class CloudinaryService {
@@ -26,6 +27,52 @@ export class CloudinaryService {
       );
 
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
+
+  async uploadImageFromPath(
+    filePath: string,
+    folder = 'virtual-tryon',
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(
+        filePath,
+        {
+          folder,
+          resource_type: 'image',
+          transformation: [
+            { quality: 'auto:good' },
+          ],
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          if (!result) return reject(new Error('Upload failed: No result'));
+          resolve(result.secure_url);
+        },
+      );
+    });
+  }
+
+  async uploadImageFromUrl(
+    imageUrl: string,
+    folder = 'virtual-tryon',
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.upload(
+        imageUrl,
+        {
+          folder,
+          resource_type: 'image',
+          transformation: [
+            { quality: 'auto:good' },
+          ],
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          if (!result) return reject(new Error('Upload failed: No result'));
+          resolve(result.secure_url);
+        },
+      );
     });
   }
 

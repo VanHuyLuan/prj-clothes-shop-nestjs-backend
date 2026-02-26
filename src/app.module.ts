@@ -14,6 +14,7 @@ import { OrdersModule } from './orders/orders.module';
 import { AddressModule } from './address/address.module';
 import { MailModule } from './mail/mail.module';
 import { PaymentModule } from './payment/payment.module';
+import { VirtualTryonModule } from './virtual-tryon/virtual-tryon.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PaymentModule } from './payment/payment.module';
     AddressModule,
     MailModule,
     PaymentModule,
+    VirtualTryonModule,
   ],
   controllers: [AppController],
   providers: [AppService],

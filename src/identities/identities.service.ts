@@ -20,6 +20,7 @@ import { JwtService } from '@nestjs/jwt';
 import { CachingService } from '../../cross_cuttings/caching';
 import { LoggerService } from '../../cross_cuttings/logger';
 import { MailService } from '../mail/mail.service';
+import { GoogleProfile } from '../auth/google.strategy';
 
 @Injectable()
 export class IdentitiesService {
@@ -416,6 +417,121 @@ export class IdentitiesService {
     });
   }
 
+  async googleLogin(
+    profile: GoogleProfile,
+  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+    // 1. Tìm account google theo providerAccountId
+    const existingAccount = await this.prisma.account.findUnique({
+      where: {
+        provider_providerAccountId: {
+          provider: 'google',
+          providerAccountId: profile.googleId,
+        },
+      },
+      include: {
+        user: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    let user: any;
+
+    if (existingAccount) {
+      // Đã có tài khoản google → lấy user
+      user = existingAccount.user;
+    } else {
+      // Kiểm tra xem email đã được dùng bởi tài khoản local chưa
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: profile.email },
+        include: { role: true },
+      });
+
+      if (existingUser) {
+        // Liên kết tài khoản google với user hiện có
+        await this.prisma.account.create({
+          data: {
+            provider: 'google',
+            providerAccountId: profile.googleId,
+            user_id: existingUser.id,
+          },
+        });
+
+        // Cập nhật avatar nếu chưa có
+        if (!existingUser.avatar && profile.avatar) {
+          await this.prisma.user.update({
+            where: { id: existingUser.id },
+            data: { avatar: profile.avatar },
+          });
+        }
+
+        user = existingUser;
+      } else {
+        // Tạo user mới từ Google profile
+        const baseUsername = profile.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        let username = baseUsername;
+        let suffix = 1;
+        while (await this.prisma.user.findUnique({ where: { username } })) {
+          username = `${baseUsername}${suffix++}`;
+        }
+
+        const newUser = await this.prisma.user.create({
+          data: {
+            email: profile.email,
+            username,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            avatar: profile.avatar,
+            role: { connect: { name: 'user' } },
+            accounts: {
+              create: {
+                provider: 'google',
+                providerAccountId: profile.googleId,
+              } as Prisma.AccountCreateWithoutUserInput,
+            },
+          },
+          include: { role: true },
+        });
+
+        user = newUser;
+      }
+    }
+
+    if (user.status === false) {
+      throw new BadRequestException('User account is deactivated');
+    }
+
+    // Sinh token
+    const tokenPayload = {
+      email: user.email,
+      id: user.id,
+      firstname: user.firstName,
+      lastname: user.lastName,
+      username: user.username,
+      phone: user.phone,
+      role: user.role.name,
+    };
+
+    const accessToken = await this.jwtService.signAsync(tokenPayload, {
+      expiresIn: '1h',
+      secret: process.env.JWT_SECRET,
+    });
+
+    const refreshToken = await this.jwtService.signAsync(
+      { id: user.id },
+      {
+        expiresIn: '7d',
+        secret: process.env.JWT_REFRESH_SECRET,
+      },
+    );
+
+    await this.cachingService.saveCacheWithPrefix('refreshToken', user.id, refreshToken, 7 * 24 * 60 * 60);
+    await this.cachingService.saveCacheWithPrefix('token', user.id, accessToken, 3600);
+
+    return { accessToken, refreshToken, expiresIn: 3600 };
+  }
 
   async logout(userId: string) {
     await this.cachingService.removeCacheWithPrefix('token', userId);

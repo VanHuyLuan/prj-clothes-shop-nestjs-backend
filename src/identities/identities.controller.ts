@@ -5,14 +5,17 @@ import {
   Post,
   Query,
   Request,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { CreateUserDto, LoginDto,ChangePasswordDto, CreateUserByAdminDto } from './dto/identities.dto';
 import { IdentitiesService } from './identities.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from './roles/roles.guard';
 import { Roles } from './roles/roles.decorator';
+import { GoogleOAuthGuard } from '../auth/google-oauth.guard';
 
 @ApiTags('identities')
 @Controller('identities')
@@ -116,5 +119,30 @@ export class IdentitiesController {
   async setAvatar(@Request() req, @Body('avatarUrl') avatarUrl: string) {
     const userId = req.user.id;
     return this.identitiesService.updateAvatar(userId, avatarUrl);
+  }
+
+  // ─── Google OAuth ───────────────────────────────────────────────────────────
+
+  @Get('/auth/google')
+  @UseGuards(GoogleOAuthGuard)
+  async googleAuth() {
+    // Passport tự redirect sang Google, không cần xử lý gì thêm
+  }
+
+  @Get('/auth/google/callback')
+  @UseGuards(GoogleOAuthGuard)
+  async googleAuthCallback(@Request() req, @Res() res: Response) {
+    const tokens = await this.identitiesService.googleLogin(req.user);
+
+    // Redirect về frontend kèm token trong query string
+    // (Frontend đọc token từ URL và lưu vào localStorage/cookie)
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const redirectUrl =
+      `${frontendUrl}/auth/google/callback` +
+      `?accessToken=${tokens.accessToken}` +
+      `&refreshToken=${tokens.refreshToken}` +
+      `&expiresIn=${tokens.expiresIn}`;
+
+    return res.redirect(redirectUrl);
   }
 }
