@@ -1,7 +1,8 @@
-import {
+﻿import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
   Request,
@@ -119,6 +120,30 @@ export class IdentitiesController {
   async setAvatar(@Request() req, @Body('avatarUrl') avatarUrl: string) {
     const userId = req.user.id;
     return this.identitiesService.updateAvatar(userId, avatarUrl);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth()
+  @Get('/user/:id')
+  @Roles('admin')
+  async getUserById(@Param('id') id: string) {
+    return this.identitiesService.getFullProfile(id);
+  }
+
+  @Post('/forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    await this.identitiesService.forgotPassword(email);
+    // Luôn trả về 200 để tránh email enumeration
+    return { message: 'If this email exists, a reset link has been sent.' };
+  }
+
+  @Post('/reset-password')
+  async resetPassword(
+    @Body('token') token: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    await this.identitiesService.resetPassword(token, newPassword);
+    return { message: 'Password has been reset successfully.' };
   }
 
   // ─── Google OAuth ───────────────────────────────────────────────────────────

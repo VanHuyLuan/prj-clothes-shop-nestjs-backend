@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Post,
@@ -31,11 +31,13 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create order directly from items' })
   @ApiResponse({ status: 201, description: 'Order created successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  create(@Body() createOrderDto: CreateOrderDto) {
-    return this.ordersService.create(createOrderDto);
+  create(@Body() createOrderDto: CreateOrderDto, @Request() req: any) {
+    return this.ordersService.create({ ...createOrderDto, user_id: req.user.id });
   }
 
   @Post('checkout')

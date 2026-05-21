@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateOrderDto, CreateOrderFromCartDto } from './dto/create-order.dto';
 import { UpdateOrderDto, OrderStatus } from './dto/update-order.dto';
@@ -9,10 +9,10 @@ export class OrdersService {
   constructor(private prisma: PrismaService) {}
 
   async create(createOrderDto: CreateOrderDto) {
-    const { items, shippingAddress, userId } = createOrderDto;
+    const { items, shipping_address, user_id } = createOrderDto;
 
     // Validate all variants exist and have enough stock
-    const variantIds = items.map(item => item.productVariantId);
+    const variantIds = items.map(item => item.product_variant_id);
     const variants = await this.prisma.productVariant.findMany({
       where: { id: { in: variantIds } },
       include: { product: true }
@@ -24,25 +24,25 @@ export class OrdersService {
 
     // Check stock availability
     for (const item of items) {
-      const variant = variants.find(v => v.id === item.productVariantId);
+      const variant = variants.find(v => v.id === item.product_variant_id);
       if (!variant) {
         throw new BadRequestException('Product variant not found');
       }
       if (variant.stock_qty < item.quantity) {
-        throw new BadRequestException(`Not enough stock for ${variant.product.name}`);
+        throw new BadRequestException(`Sản phẩm "${variant.product.name}" không đủ tồn kho (còn ${variant.stock_qty})`);
       }
     }
 
-    // Calculate total amount
+    // Calculate total amount using variant prices (not client-provided prices)
     let totalAmount = 0;
     const orderItems = items.map(item => {
-      const variant = variants.find(v => v.id === item.productVariantId)!;
+      const variant = variants.find(v => v.id === item.product_variant_id)!;
       const unitPrice = Number(variant.sale_price || variant.price);
       const totalPrice = unitPrice * item.quantity;
       totalAmount += totalPrice;
 
       return {
-        product_variant_id: item.productVariantId,
+        product_variant_id: item.product_variant_id,
         quantity: item.quantity,
         unit_price: unitPrice,
         total_price: totalPrice
@@ -53,15 +53,14 @@ export class OrdersService {
     const orderNumber = await this.generateOrderNumber();
 
     try {
-      // Create order with items in a transaction
+      // Create order and decrement stock atomically in a transaction
       const order = await this.prisma.$transaction(async (prisma) => {
-        // Create the order
         const newOrder = await prisma.order.create({
           data: {
-            user_id: userId,
+            user_id,
             order_number: orderNumber,
             total_amount: totalAmount,
-            shipping_address: shippingAddress as any,
+            shipping_address: shipping_address as any,
             items: {
               create: orderItems
             }
@@ -84,10 +83,10 @@ export class OrdersService {
           }
         });
 
-        // Update stock quantities
+        // Decrement stock for each ordered variant
         for (const item of items) {
           await prisma.productVariant.update({
-            where: { id: item.productVariantId },
+            where: { id: item.product_variant_id },
             data: {
               stock_qty: {
                 decrement: item.quantity
@@ -101,13 +100,13 @@ export class OrdersService {
 
       return order;
     } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       throw new BadRequestException('Failed to create order');
     }
   }
 
   async createFromCart(createOrderFromCartDto: CreateOrderFromCartDto, userId?: string) {
-    const { cartId, shipping_address } = createOrderFromCartDto;
-    const shippingAddress = shipping_address;
+    const { cart_id, shipping_address } = createOrderFromCartDto;
 
     // Get cart items
     let cart;
@@ -124,9 +123,9 @@ export class OrdersService {
           }
         }
       });
-    } else if (cartId) {
+    } else if (cart_id) {
       cart = await this.prisma.cart.findUnique({
-        where: { id: cartId },
+        where: { id: cart_id },
         include: {
           items: {
             include: {
@@ -145,15 +144,14 @@ export class OrdersService {
 
     // Convert cart items to order items
     const orderItems = cart.items.map(item => ({
-      productVariantId: item.product_variant_id,
+      product_variant_id: item.product_variant_id,
       quantity: item.quantity,
-      unitPrice: item.variant.sale_price || item.variant.price
     }));
 
     const createOrderDto: CreateOrderDto = {
-      userId,
+      user_id: userId,
       items: orderItems,
-      shippingAddress
+      shipping_address,
     };
 
     const order = await this.create(createOrderDto);
@@ -229,12 +227,10 @@ export class OrdersService {
 
     return {
       data: orders,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -422,12 +418,10 @@ export class OrdersService {
 
     return {
       data: orders,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit)
-      }
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     };
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+﻿import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { CreateMomoPaymentDto } from './dto/create-momo-payment.dto';
@@ -120,6 +120,17 @@ export class PaymentService {
           extra_data: extraData,
         },
       });
+
+      // Mark order as awaiting MoMo payment so FE can show retry button
+      if (orderExists) {
+        await this.prisma.order.update({
+          where: { order_number: orderId },
+          data: {
+            payment_method: 'momo',
+            payment_status: 'unpaid',
+          },
+        });
+      }
 
       return {
         success: result.resultCode === 0,

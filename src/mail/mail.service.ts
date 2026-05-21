@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
@@ -209,6 +209,29 @@ export class MailService {
     }
   }
   
+  async sendForgotPasswordEmail(email: string, username: string, resetLink: string, firstName?: string) {
+    const name = firstName || username;
+    const html = '<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px}.header{background:#111;color:#fff;padding:30px;text-align:center;border-radius:8px 8px 0 0}.content{background:#f9f9f9;padding:30px;border:1px solid #ddd;border-radius:0 0 8px 8px}.btn{display:inline-block;padding:14px 36px;background:#111;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin:20px 0}.warn{background:#fff3cd;border:1px solid #ffc107;color:#856404;padding:12px 16px;border-radius:6px;margin:16px 0;font-size:13px}.footer{text-align:center;margin-top:20px;color:#999;font-size:12px}</style></head>'
+      + '<body><div class="header"><h2>&#128273; Yêu cầu đặt lại mật khẩu</h2></div>'
+      + '<div class="content">'
+      + '<p>Xin chào <strong>' + name + '</strong>,</p>'
+      + '<p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>'
+      + '<p>Nhấn nút bên dưới để đặt lại mật khẩu. Liên kết này chỉ có hiệu lực trong <strong>15 phút</strong>.</p>'
+      + '<div style="text-align:center"><a href="' + resetLink + '" class="btn">Đặt lại mật khẩu</a></div>'
+      + '<div class="warn">Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này. Tài khoản của bạn vẫn an toàn.</div>'
+      + '<p style="font-size:12px;color:#999">Hoặc copy link: ' + resetLink + '</p>'
+      + '<p>Trân trọng,<br><strong>Đội ngũ Clothes Shop</strong></p>'
+      + '</div><div class="footer"><p>&copy; 2024 Clothes Shop. All rights reserved.</p></div>'
+      + '</body></html>';
+    try {
+      await this.mailerService.sendMail({ to: email, subject: 'Đặt lại mật khẩu Clothes Shop', html });
+      return { success: true };
+    } catch (error) {
+      console.error('Error sending forgot password email:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   async sendResetPasswordByAdminEmail(email: string,
     username: string,
     password: string,

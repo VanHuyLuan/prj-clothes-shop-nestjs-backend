@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+﻿import { BadRequestException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma.service';
 import {
   CreateUserByAdminDto,
@@ -15,7 +16,6 @@ import {
   UpdateAddressDto,
   UpdateAddressResponse,
 } from './dto/identities.dto';
-import { Prisma } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { CachingService } from '../../cross_cuttings/caching';
 import { LoggerService } from '../../cross_cuttings/logger';
@@ -44,28 +44,21 @@ export class IdentitiesService {
     // 1. Hash password
     const hashedPassword = await this.encryptPassword(input.password, 10);
 
-    // 2. Chuẩn bị dữ liệu cho Prisma.UserCreateInput
-    const userData: Prisma.UserCreateInput = {
-      email: input.email,
-      phone: input.phone,
-      username: input.username,
-      firstName: input.firstname,
-      lastName: input.lastname,
-      role: {
-        connect: { name: 'user' },
-      },
-    };
-
     // 3. Tạo user + account
     const user = await this.prisma.user.create({
       data: {
-        ...userData,
+        email: input.email,
+        phone: input.phone,
+        username: input.username,
+        firstName: input.firstname,
+        lastName: input.lastname,
+        role: { connect: { name: 'user' } },
         accounts: {
           create: {
             provider: 'local',
-            providerAccountId: userData.email ?? '',
+            providerAccountId: input.email ?? '',
             password: hashedPassword,
-          } as Prisma.AccountCreateWithoutUserInput,
+          },
         },
       },
       select: {
@@ -138,28 +131,21 @@ export class IdentitiesService {
     }
     const roleId = role.id;
 
-    // 2. Chuẩn bị dữ liệu cho Prisma.UserCreateInput
-    const userData: Prisma.UserCreateInput = {
-      email: input.email,
-      phone: input.phone,
-      username: input.username,
-      firstName: input.firstname,
-      lastName: input.lastname,
-      role: {
-        connect: { id: roleId },
-      },
-    };
-    
     // 3. Tạo user + account
     const user = await this.prisma.user.create({
       data: {
-        ...userData,
+        email: input.email,
+        phone: input.phone,
+        username: input.username,
+        firstName: input.firstname,
+        lastName: input.lastname,
+        role: { connect: { id: roleId } },
         accounts: {
           create: {
             provider: 'local',
-            providerAccountId: userData.email ?? '',
+            providerAccountId: input.email ?? '',
             password: hashedPassword,
-          } as Prisma.AccountCreateWithoutUserInput,
+          },
         },
       },
       select: {
@@ -291,9 +277,13 @@ export class IdentitiesService {
     }
 
     // 2. Check password
+    const localAccount = user.accounts[0];
+    if (!localAccount) {
+      throw new BadRequestException('This account was created with Google. Please sign in with Google.');
+    }
     const isPasswordValid = await this.decryptPassword(
       loginDTO.password,
-      user.accounts[0].password,
+      localAccount.password,
     );
     if (!isPasswordValid)
       throw new BadRequestException('Password is incorrect');
@@ -489,7 +479,7 @@ export class IdentitiesService {
               create: {
                 provider: 'google',
                 providerAccountId: profile.googleId,
-              } as Prisma.AccountCreateWithoutUserInput,
+              },
             },
           },
           include: { role: true },
@@ -533,6 +523,62 @@ export class IdentitiesService {
     return { accessToken, refreshToken, expiresIn: 3600 };
   }
 
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.findUserByEmail(email);
+    // Không báo lỗi nếu email không tồn tại — tránh email enumeration
+    if (!user) return;
+
+    if (user.status === false) {
+      throw new BadRequestException('User account is deactivated');
+    }
+
+    // Tạo token ngẫu nhiên, TTL 15 phút
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.cachingService.saveCacheWithPrefix(
+      'resetPasswordToken',
+      token,
+      user.id,
+      15 * 60,
+    );
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+    await this.mailService.sendForgotPasswordEmail(
+      user.email ?? '',
+      user.username,
+      resetLink,
+      user.firstName ?? undefined,
+    );
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    // Lấy userId từ cache theo token
+    const userId = await this.cachingService.getCacheWithPrefix<string>(
+      'resetPasswordToken',
+      token,
+    );
+
+    if (!userId) {
+      throw new BadRequestException('Reset token is invalid or has expired');
+    }
+
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Đổi mật khẩu
+    const hashedPassword = await this.encryptPassword(newPassword, 10);
+    await this.prisma.account.updateMany({
+      where: { user_id: userId, provider: 'local' },
+      data: { password: hashedPassword },
+    });
+
+    // Xóa token khỏi cache ngay sau khi dùng
+    await this.cachingService.removeCacheWithPrefix('resetPasswordToken', token);
+  }
+
   async logout(userId: string) {
     await this.cachingService.removeCacheWithPrefix('token', userId);
     await this.cachingService.removeCacheWithPrefix('refreshToken', userId);
@@ -550,9 +596,19 @@ export class IdentitiesService {
 
     const skip = (page - 1) * limit;
 
+    const search = query.search;
     const where: any = {};
     if (role_id) {
       where.role_id = role_id;
+    }
+    if (search) {
+      where.OR = [
+        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
     const [users, total] = await Promise.all([
@@ -602,9 +658,13 @@ export class IdentitiesService {
     }
 
     // 2. Kiểm tra mật khẩu cũ
+    const localAccount = user.accounts[0];
+    if (!localAccount) {
+      throw new BadRequestException('This account uses Google login and has no password to change.');
+    }
     const isOldPasswordValid = await this.decryptPassword(
       changePasswordDto.old_password,
-      user.accounts[0].password,
+      localAccount.password,
     );
     if (!isOldPasswordValid) {
       throw new BadRequestException('Old password is incorrect');
@@ -695,6 +755,7 @@ export class IdentitiesService {
         gender: true,
         birthday: true,
         accounts: {
+          where: { provider: 'local' },
           select: {
             password: true,
           },
@@ -723,6 +784,7 @@ export class IdentitiesService {
         gender: true,
         birthday: true,
         accounts: {
+          where: { provider: 'local' },
           select: {
             password: true,
           },
@@ -751,6 +813,7 @@ export class IdentitiesService {
         gender: true,
         birthday: true,
         accounts: {
+          where: { provider: 'local' },
           select: {
             password: true,
           },

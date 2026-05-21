@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, IsObject, IsArray, ValidateNested } from 'class-validator';
+﻿import { IsOptional, IsString, IsUUID, IsArray, IsInt, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -28,9 +28,9 @@ export class CreateOrderFromCartDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
-  cartId?: string; // For guest checkout
+  cart_id?: string;
 
-  @ApiProperty({ type: ShippingAddressDto, name: 'shipping_address' })
+  @ApiProperty({ type: ShippingAddressDto })
   @ValidateNested()
   @Type(() => ShippingAddressDto)
   shipping_address: ShippingAddressDto;
@@ -39,20 +39,19 @@ export class CreateOrderFromCartDto {
 export class OrderItemDto {
   @ApiProperty()
   @IsUUID()
-  productVariantId: string;
+  product_variant_id: string;
 
   @ApiProperty()
+  @IsInt()
+  @Min(1)
   quantity: number;
-
-  @ApiProperty()
-  unitPrice: number;
 }
 
 export class CreateOrderDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
-  userId?: string;
+  user_id?: string;
 
   @ApiProperty({ type: [OrderItemDto] })
   @IsArray()
@@ -63,5 +62,5 @@ export class CreateOrderDto {
   @ApiProperty({ type: ShippingAddressDto })
   @ValidateNested()
   @Type(() => ShippingAddressDto)
-  shippingAddress: ShippingAddressDto;
+  shipping_address: ShippingAddressDto;
 }
