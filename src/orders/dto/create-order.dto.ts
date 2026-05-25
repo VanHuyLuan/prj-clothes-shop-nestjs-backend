@@ -53,6 +53,11 @@ export class CreateOrderDto {
   @IsUUID()
   user_id?: string;
 
+  @ApiPropertyOptional({ enum: ['cod', 'momo', 'bank_transfer'] })
+  @IsOptional()
+  @IsString()
+  payment_method?: string;
+
   @ApiProperty({ type: [OrderItemDto] })
   @IsArray()
   @ValidateNested({ each: true })

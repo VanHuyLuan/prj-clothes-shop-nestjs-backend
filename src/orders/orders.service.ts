@@ -1,12 +1,17 @@
-﻿import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+﻿import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { MailService } from '../mail/mail.service';
 import { CreateOrderDto, CreateOrderFromCartDto } from './dto/create-order.dto';
 import { UpdateOrderDto, OrderStatus } from './dto/update-order.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(OrdersService.name);
+  constructor(
+    private prisma: PrismaService,
+    private mailService: MailService,
+  ) {}
 
   async create(createOrderDto: CreateOrderDto) {
     const { items, shipping_address, user_id } = createOrderDto;
@@ -97,6 +102,16 @@ export class OrdersService {
 
         return newOrder;
       });
+
+      // Send confirmation email for COD orders (non-blocking)
+      if (!createOrderDto.payment_method || createOrderDto.payment_method === 'cod') {
+        const u = order.user as any;
+        if (u?.email) {
+          this.mailService
+            .sendOrderConfirmationEmail(u.email, u.firstName || u.username, order.order_number, order.total_amount, 'cod')
+            .catch((err) => this.logger.error('Failed to send order email', err));
+        }
+      }
 
       return order;
     } catch (error) {

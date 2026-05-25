@@ -315,4 +315,57 @@ export class MailService {
       return { success: false, error: error.message };
     }
   }
+
+  async sendOrderConfirmationEmail(
+    email: string,
+    name: string,
+    orderNumber: string,
+    totalAmount: number | string,
+    paymentMethod: string,
+  ) {
+    const methodLabel =
+      paymentMethod === 'momo' ? 'Ví MoMo' :
+      paymentMethod === 'cod' ? 'Thanh toán khi nhận hàng (COD)' :
+      paymentMethod === 'bank_transfer' ? 'Chuyển khoản ngân hàng' : paymentMethod;
+
+    const html =
+      '<!DOCTYPE html><html><head><style>'
+      + 'body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px}'
+      + '.header{background:#111;color:#fff;padding:30px;text-align:center;border-radius:8px 8px 0 0}'
+      + '.content{background:#f9f9f9;padding:30px;border:1px solid #ddd;border-radius:0 0 8px 8px}'
+      + '.info-box{background:#fff;border-left:4px solid #111;padding:16px 20px;border-radius:4px;margin:20px 0}'
+      + '.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee}'
+      + '.row:last-child{border-bottom:none;font-weight:bold;font-size:16px}'
+      + '.btn{display:inline-block;padding:14px 36px;background:#111;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;margin:20px 0}'
+      + '.footer{text-align:center;margin-top:20px;color:#999;font-size:12px}'
+      + '</style></head>'
+      + '<body>'
+      + '<div class="header"><h2>✅ Đơn hàng đã được xác nhận!</h2></div>'
+      + '<div class="content">'
+      + '<p>Xin chào <strong>' + name + '</strong>,</p>'
+      + '<p>Cảm ơn bạn đã mua sắm tại <strong>Clothes Shop</strong>! Đơn hàng của bạn đã được xác nhận thành công.</p>'
+      + '<div class="info-box">'
+      + '<div class="row"><span>Mã đơn hàng</span><span><strong>' + orderNumber + '</strong></span></div>'
+      + '<div class="row"><span>Phương thức thanh toán</span><span>' + methodLabel + '</span></div>'
+      + '<div class="row"><span>Tổng tiền</span><span>' + Number(totalAmount).toLocaleString('vi-VN') + '₫</span></div>'
+      + '</div>'
+      + '<div style="text-align:center"><a href="http://localhost:3000/client/orders/' + orderNumber + '" class="btn">Xem đơn hàng</a></div>'
+      + '<p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>'
+      + '<p>Trân trọng,<br><strong>Đội ngũ Clothes Shop</strong></p>'
+      + '</div>'
+      + '<div class="footer"><p>&copy; 2024 Clothes Shop. All rights reserved.</p></div>'
+      + '</body></html>';
+
+    try {
+      await this.mailerService.sendMail({
+        to: email,
+        subject: `Xác nhận đơn hàng ${orderNumber} - Clothes Shop`,
+        html,
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Error sending order confirmation email:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }

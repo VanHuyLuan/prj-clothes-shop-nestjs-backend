@@ -1,6 +1,7 @@
 ﻿import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
+import { MailService } from '../mail/mail.service';
 import { CreateMomoPaymentDto } from './dto/create-momo-payment.dto';
 import { MomoCallbackDto } from './dto/momo-callback.dto';
 import * as crypto from 'crypto';
@@ -18,6 +19,7 @@ export class PaymentService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
   ) {
     // MoMo credentials - should be stored in .env file
     this.partnerCode = this.configService.get<string>('MOMO_PARTNER_CODE') || 'MOMO';
@@ -209,27 +211,50 @@ export class PaymentService {
         },
       });
 
-      // If payment successful, update order status (if order exists)
-      if (resultCode === 0 && orderId) {
+      // Update order status based on payment result
+      if (orderId) {
         const order = await this.prisma.order.findUnique({
           where: { order_number: orderId },
+          include: { user: true },
         });
 
         if (order) {
-          await this.prisma.order.update({
-            where: { order_number: orderId },
-            data: {
-              status: 'confirmed',
-              payment_method: 'momo',
-              payment_status: 'paid',
-            },
-          });
-          this.logger.log(`Order ${orderId} confirmed and payment completed`);
+          if (resultCode === 0) {
+            // Payment success → confirm order
+            await this.prisma.order.update({
+              where: { order_number: orderId },
+              data: {
+                status: 'confirmed',
+                payment_method: 'momo',
+                payment_status: 'paid',
+              },
+            });
+            this.logger.log(`Order ${orderId} confirmed and payment completed`);
+
+            // Send confirmation email (non-blocking)
+            if (order.user?.email) {
+              const name = order.user.firstName || order.user.username;
+              this.mailService
+                .sendOrderConfirmationEmail(
+                  order.user.email,
+                  name,
+                  orderId,
+                  order.total_amount,
+                  'momo',
+                )
+                .catch((err) => this.logger.error('Failed to send order email', err));
+            }
+          } else {
+            // Payment failed → mark order payment as failed
+            await this.prisma.order.update({
+              where: { order_number: orderId },
+              data: { payment_status: 'failed' },
+            });
+            this.logger.warn(`Payment failed for order ${orderId}: ${message}`);
+          }
         } else {
-          this.logger.warn(`Payment successful but order ${orderId} not found in database`);
+          this.logger.warn(`Order ${orderId} not found in database`);
         }
-      } else {
-        this.logger.warn(`Payment failed for order ${orderId}: ${message}`);
       }
 
       return {
