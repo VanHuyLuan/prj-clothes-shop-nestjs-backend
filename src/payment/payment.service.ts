@@ -239,7 +239,7 @@ export class PaymentService {
                   order.user.email,
                   name,
                   orderId,
-                  order.total_amount,
+                  Number(order.total_amount),
                   'momo',
                 )
                 .catch((err) => this.logger.error('Failed to send order email', err));

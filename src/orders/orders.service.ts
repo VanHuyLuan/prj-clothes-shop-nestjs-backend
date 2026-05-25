@@ -108,7 +108,7 @@ export class OrdersService {
         const u = order.user as any;
         if (u?.email) {
           this.mailService
-            .sendOrderConfirmationEmail(u.email, u.firstName || u.username, order.order_number, order.total_amount, 'cod')
+            .sendOrderConfirmationEmail(u.email, u.firstName || u.username, order.order_number, Number(order.total_amount), 'cod')
             .catch((err) => this.logger.error('Failed to send order email', err));
         }
       }
