@@ -638,8 +638,38 @@ export class IdentitiesService {
       this.prisma.user.count({ where }),
     ]);
 
+    const userIds = users.map((u) => u.id);
+
+    const [orderCounts, orderSpent] = await Promise.all([
+      this.prisma.order.groupBy({
+        by: ['user_id'],
+        where: { user_id: { in: userIds } },
+        _count: { id: true },
+        _max: { created_at: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['user_id'],
+        where: { user_id: { in: userIds }, status: { notIn: ['cancelled'] } },
+        _sum: { total_amount: true },
+      }),
+    ]);
+
+    const countMap = new Map(orderCounts.map((r) => [r.user_id, r]));
+    const spentMap = new Map(orderSpent.map((r) => [r.user_id, r]));
+
+    const data = users.map((u) => {
+      const counts = countMap.get(u.id);
+      const spent = spentMap.get(u.id);
+      return {
+        ...u,
+        totalOrders: counts?._count.id ?? 0,
+        totalSpent: Number(spent?._sum.total_amount ?? 0),
+        lastOrder: counts?._max.created_at ?? null,
+      };
+    });
+
     return {
-      data: users,
+      data,
       total,
       page,
       limit,
