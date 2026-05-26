@@ -58,13 +58,14 @@ export class PaymentService {
         }
       }
       
-      // Generate unique requestId
+      // Generate unique requestId — also used as MoMo orderId to avoid duplicate-orderId errors
       const requestId = `${this.partnerCode}${new Date().getTime()}`;
+      const momoOrderId = requestId; // MoMo requires a unique orderId per attempt
       const requestType = 'captureWallet';
       const lang = 'vi';
 
-      // Create raw signature string
-      const rawSignature = `accessKey=${this.accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${this.ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${this.partnerCode}&redirectUrl=${this.redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
+      // Create raw signature string (use momoOrderId, not our internal orderId)
+      const rawSignature = `accessKey=${this.accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${this.ipnUrl}&orderId=${momoOrderId}&orderInfo=${orderInfo}&partnerCode=${this.partnerCode}&redirectUrl=${this.redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
 
       this.logger.debug('Raw Signature:', rawSignature);
 
@@ -73,13 +74,13 @@ export class PaymentService {
 
       this.logger.debug('Signature:', signature);
 
-      // Request body to send to MoMo
+      // Request body to send to MoMo (use momoOrderId — unique per attempt)
       const requestBody = {
         partnerCode: this.partnerCode,
         accessKey: this.accessKey,
         requestId,
         amount: amount.toString(),
-        orderId,
+        orderId: momoOrderId,
         orderInfo,
         redirectUrl: this.redirectUrl,
         ipnUrl: this.ipnUrl,
@@ -104,11 +105,12 @@ export class PaymentService {
 
       this.logger.debug('MoMo Response:', JSON.stringify(result));
 
-      // Save payment transaction to database
-      // Only link to order if it exists
-      const orderExists = orderId ? await this.prisma.order.findUnique({
-        where: { order_number: orderId },
-      }) : null;
+      // Save payment — store our internal orderId so callback can locate the order
+      const orderExists = orderId
+        ? await this.prisma.order.findUnique({
+            where: { order_number: orderId },
+          })
+        : null;
 
       await this.prisma.payment.create({
         data: {
@@ -211,10 +213,12 @@ export class PaymentService {
         },
       });
 
-      // Update order status based on payment result
-      if (orderId) {
+      // Update order status — look up via payment.order_id (our internal order number)
+      // MoMo's orderId is now the requestId (unique per attempt), not our order_number
+      const internalOrderId = payment.order_id;
+      if (internalOrderId) {
         const order = await this.prisma.order.findUnique({
-          where: { order_number: orderId },
+          where: { order_number: internalOrderId },
           include: { user: true },
         });
 
@@ -222,14 +226,16 @@ export class PaymentService {
           if (resultCode === 0) {
             // Payment success → confirm order
             await this.prisma.order.update({
-              where: { order_number: orderId },
+              where: { order_number: internalOrderId },
               data: {
                 status: 'confirmed',
                 payment_method: 'momo',
                 payment_status: 'paid',
               },
             });
-            this.logger.log(`Order ${orderId} confirmed and payment completed`);
+            this.logger.log(
+              `Order ${internalOrderId} confirmed and payment completed`,
+            );
 
             // Send confirmation email (non-blocking)
             if (order.user?.email) {
@@ -238,7 +244,7 @@ export class PaymentService {
                 .sendOrderConfirmationEmail(
                   order.user.email,
                   name,
-                  orderId,
+                  internalOrderId,
                   Number(order.total_amount),
                   'momo',
                 )
@@ -247,13 +253,15 @@ export class PaymentService {
           } else {
             // Payment failed → mark order payment as failed
             await this.prisma.order.update({
-              where: { order_number: orderId },
+              where: { order_number: internalOrderId },
               data: { payment_status: 'failed' },
             });
-            this.logger.warn(`Payment failed for order ${orderId}: ${message}`);
+            this.logger.warn(
+              `Payment failed for order ${internalOrderId}: ${message}`,
+            );
           }
         } else {
-          this.logger.warn(`Order ${orderId} not found in database`);
+          this.logger.warn(`Order ${internalOrderId} not found in database`);
         }
       }
 
@@ -328,5 +336,65 @@ export class PaymentService {
       where: { order_id: orderId },
       orderBy: { created_at: 'desc' },
     });
+  }
+
+  /**
+   * DEV ONLY: Simulate a successful MoMo payment without real IPN.
+   * Useful when ipnUrl is localhost and MoMo cannot call back.
+   */
+  async simulateSuccess(orderId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { order_id: orderId },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!payment) {
+      throw new BadRequestException(
+        `No pending payment found for order ${orderId}`,
+      );
+    }
+
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: 'completed',
+        result_code: 0,
+        result_message: 'Simulated success',
+      },
+    });
+
+    const order = await this.prisma.order.findUnique({
+      where: { order_number: orderId },
+      include: { user: true },
+    });
+
+    if (order) {
+      await this.prisma.order.update({
+        where: { order_number: orderId },
+        data: {
+          status: 'confirmed',
+          payment_method: 'momo',
+          payment_status: 'paid',
+        },
+      });
+
+      if (order.user?.email) {
+        const name = order.user.firstName || order.user.username;
+        this.mailService
+          .sendOrderConfirmationEmail(
+            order.user.email,
+            name,
+            orderId,
+            Number(order.total_amount),
+            'momo',
+          )
+          .catch((err) => this.logger.error('Failed to send order email', err));
+      }
+    }
+
+    return {
+      success: true,
+      message: `Payment for order ${orderId} marked as completed`,
+    };
   }
 }

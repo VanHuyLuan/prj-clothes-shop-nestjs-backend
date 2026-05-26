@@ -440,10 +440,22 @@ POST /payment/momo/create
     return await this.paymentService.queryTransaction(orderId);
   }
 
+  @Post('momo/simulate-success/:orderId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '[DEV] Simulate MoMo payment success',
+    description:
+      'Manually marks a payment as completed and confirms the order. Use this when ipnUrl is localhost and MoMo cannot call back.',
+  })
+  @ApiParam({ name: 'orderId', description: 'Internal order number', example: 'ORD-12345' })
+  async simulateMomoSuccess(@Param('orderId') orderId: string) {
+    return await this.paymentService.simulateSuccess(orderId);
+  }
+
   @Get('order/:orderId')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get payment by order ID',
-    description: 'Get payment information from local database by order ID'
+    description: 'Get payment information from local database by order ID',
   })
   @ApiParam({ 
     name: 'orderId', 
